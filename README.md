@@ -2,6 +2,10 @@
 
 MCP proxy for monorepo environments — connects Claude Code to multiple IDE instances across sub-projects.
 
+## Requirements
+
+- [Bun](https://bun.com/) runtime (v1.0.0 or higher)
+
 ## Installation
 
 ```bash
