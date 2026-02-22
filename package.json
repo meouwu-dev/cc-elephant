@@ -1,6 +1,6 @@
 {
   "name": "cc-elephant",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "private": false,
   "description": "MCP proxy for monorepo environments — connects Claude Code to multiple IDE instances across sub-projects",
