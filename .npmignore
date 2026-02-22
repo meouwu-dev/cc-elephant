@@ -1,0 +1,7 @@
+logs/
+node_modules/
+tsconfig.json
+bun.lock
+.elephant/
+.gitignore
+.git/

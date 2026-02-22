@@ -1,0 +1,25 @@
+{
+  "name": "cc-elephant",
+  "version": "0.1.0",
+  "type": "module",
+  "private": false,
+  "bin": {
+    "elephant": "./src/index.ts",
+    "cce": "./src/index.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "engines": {
+    "bun": ">=1.0.0"
+  },
+  "scripts": {
+    "switcher": "bun src/sandbox/switcher.ts"
+  }
+}
