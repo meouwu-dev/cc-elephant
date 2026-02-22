@@ -3,6 +3,15 @@
   "version": "0.1.0",
   "type": "module",
   "private": false,
+  "description": "MCP proxy for monorepo environments — connects Claude Code to multiple IDE instances across sub-projects",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/meouwu-dev/cc-elephant.git"
+  },
+  "bugs": {
+    "url": "https://github.com/meouwu-dev/cc-elephant/issues"
+  },
+  "homepage": "https://github.com/meouwu-dev/cc-elephant#readme",
   "bin": {
     "elephant": "./src/index.ts",
     "cce": "./src/index.ts"
