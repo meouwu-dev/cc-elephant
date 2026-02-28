@@ -37,6 +37,12 @@ elephant
 - `--proxy-only` — run only the proxy server without spawning Claude Code
 - `--lsp-fix` — fix LSP URI issues on Windows by shimming `typescript-language-server`
 
+Arguments after `--` are forwarded to Claude Code:
+
+```bash
+elephant --debug -- --verbose --model sonnet
+```
+
 ### Example
 
 ```bash
@@ -46,6 +52,9 @@ elephant --dir ~/my-monorepo --log-dir "" --auto-focus --debug
 # Or from within your monorepo
 cd ~/my-monorepo
 cce --log-dir "" --auto-focus --debug
+
+# Pass args to Claude Code
+cce --debug -- --verbose
 ```
 
 Then in Claude Code:

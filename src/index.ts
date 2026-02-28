@@ -8,8 +8,13 @@ import { ideScanUtils } from "./ide-scan.ts";
 import { startProxy } from "./proxy.ts";
 import { pathUtils } from "./path-utils.ts";
 
+const rawArgs = process.argv.slice(2);
+const sepIndex = rawArgs.indexOf("--");
+const elephantArgs = sepIndex === -1 ? rawArgs : rawArgs.slice(0, sepIndex);
+const claudeArgs = sepIndex === -1 ? [] : rawArgs.slice(sepIndex + 1);
+
 const { values } = parseArgs({
-  args: process.argv.slice(2),
+  args: elephantArgs,
   options: {
     port: { type: "string" },
     "log-dir": { type: "string" },
@@ -118,7 +123,9 @@ if (proxyOnly) {
 
   logger.log({ level: "info", msg: "spawning claude..." });
 
-  const claude = spawn("claude", ["--debug"], {
+  logger.log({ level: "info", msg: `claudeArgs   : ${claudeArgs.join(" ")}` });
+
+  const claude = spawn("claude", claudeArgs, {
     stdio: "inherit",
     env,
     shell: true,
