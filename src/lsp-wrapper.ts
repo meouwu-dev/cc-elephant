@@ -131,16 +131,9 @@ function encodeMessage(body: string): Buffer {
 
 // --- Main ---
 
-// Ensure debug log directory exists early (before any debug() calls from findRealTLS)
-if (DEBUG_LOG) {
-  try { fs.mkdirSync(path.dirname(DEBUG_LOG), { recursive: true }); } catch {}
-}
-
 debug(`lsp-wrapper invoked with args: ${process.argv.slice(2).join(" ")}`);
 
 const selfDir = path.resolve(path.dirname(process.argv[1] ?? __filename), "bin");
-// Also consider the directory of this script itself
-const scriptDir = path.resolve(path.dirname(process.argv[1] ?? __filename));
 
 const realTLS = findRealTLS(selfDir);
 const childArgs = process.argv.slice(2);
