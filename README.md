@@ -33,7 +33,9 @@ elephant
 - `--log-dir <path>` — log directory (empty string `""` uses `.elephant` in monorepo root, omit to disable logging)
 - `--log-level <level>` — log level: `trace`, `debug`, `info`, `warn`, `error` (default: `info`)
 - `--auto-focus` — bring IDE window to foreground when Claude opens a diff (default: `false`)
-- `--debug` — enable debug mode (sets log level to `debug`, keeps PowerShell windows open for diagnostics)
+- `--debug` — enable debug mode (sets log level to `debug`, enables file logging)
+- `--proxy-only` — run only the proxy server without spawning Claude Code
+- `--lsp-fix` — fix LSP URI issues on Windows by shimming `typescript-language-server`
 
 ### Example
 

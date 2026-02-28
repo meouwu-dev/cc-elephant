@@ -33,15 +33,24 @@ const monorepoRoot = values.dir
   ? pathUtils.normalizePath(values.dir)
   : process.cwd();
 const claudeDir = path.join(os.homedir(), ".claude", "ide");
-const logDir =
-  values["log-dir"] !== undefined
-    ? values["log-dir"] === ""
-      ? path.join(os.homedir(), ".cc-elephant", "logs")
-      : values["log-dir"]
-    : undefined;
-
 const debug = values["debug"] ?? false;
-const logLevel = (values["log-level"] as Level | undefined) ?? (debug ? "debug" : "info");
+
+function resolveLogDir(): string | undefined {
+  const defaultDir = path.join(os.homedir(), ".cc-elephant", "logs");
+  if (values["log-dir"] === "") {
+    return defaultDir;
+  }
+  if (values["log-dir"] !== undefined) {
+    return values["log-dir"];
+  }
+  if (debug) {
+    return defaultDir;
+  }
+  return undefined;
+}
+const logDir = resolveLogDir();
+const logLevel =
+  (values["log-level"] as Level | undefined) ?? (debug ? "debug" : "info");
 const logger = logUtils.getLogger({ logDir, logLevel });
 
 const autoFocus = values["auto-focus"] ?? false;
@@ -79,8 +88,14 @@ function shutdown() {
 }
 
 if (proxyOnly) {
-  process.on("SIGINT", () => { shutdown(); process.exit(0); });
-  process.on("SIGTERM", () => { shutdown(); process.exit(0); });
+  process.on("SIGINT", () => {
+    shutdown();
+    process.exit(0);
+  });
+  process.on("SIGTERM", () => {
+    shutdown();
+    process.exit(0);
+  });
   process.on("exit", () => ideScanUtils.removeLock(ctx, port));
 } else {
   // Spawn claude as a child process
@@ -95,12 +110,10 @@ if (proxyOnly) {
     if (logDir) {
       env.CCE_LOG_DIR = logDir;
     }
-    logger.log({ level: "info", msg: `lsp-fix: prepended ${shimDir} to PATH, set ENABLE_LSP_TOOL=1` });
-  }
-
-  if (lspFix) {
-    console.log(`ENABLE_LSP_TOOL=${env.ENABLE_LSP_TOOL}`);
-    console.log(`PATH (first entry)=${env.PATH?.split(process.platform === "win32" ? ";" : ":")[0]}`);
+    logger.log({
+      level: "info",
+      msg: `lsp-fix: prepended ${shimDir} to PATH, set ENABLE_LSP_TOOL=1`,
+    });
   }
 
   logger.log({ level: "info", msg: "spawning claude..." });

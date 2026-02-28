@@ -23,7 +23,6 @@ function getLogger(ctx: { logDir?: string; logLevel?: Level }): Logger {
     if (LEVELS.indexOf(level) > minRank) return;
     const line = `[${new Date().toISOString()}] [${level.toUpperCase().padEnd(5)}] ${msg}`;
     fileStream?.write(line + "\n");
-    process.stdout.write(line + "\n");
   }
 
   return { log };
