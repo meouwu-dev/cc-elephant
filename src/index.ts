@@ -1,12 +1,14 @@
 #!/usr/bin/env bun
 import { parseArgs } from "util";
 import { spawn } from "child_process";
+import fs from "fs";
 import os from "os";
 import path from "path";
 import { logUtils, type Level } from "./logger.ts";
 import { ideScanUtils } from "./ide-scan.ts";
 import { startProxy } from "./proxy.ts";
 import { pathUtils } from "./path-utils.ts";
+import { setParentLspEnv, getLspLogFile, LSP_ENV_KEYS } from "./lsp-env.ts";
 
 const rawArgs = process.argv.slice(2);
 const sepIndex = rawArgs.indexOf("--");
@@ -40,16 +42,17 @@ const monorepoRoot = values.dir
 const claudeDir = path.join(os.homedir(), ".claude", "ide");
 const debug = values["debug"] ?? false;
 
+const dataDir = path.join(os.homedir(), ".cc-elephant");
+
 function resolveLogDir(): string | undefined {
-  const defaultDir = path.join(os.homedir(), ".cc-elephant", "logs");
   if (values["log-dir"] === "") {
-    return defaultDir;
+    return path.join(dataDir, "logs");
   }
   if (values["log-dir"] !== undefined) {
     return values["log-dir"];
   }
   if (debug) {
-    return defaultDir;
+    return path.join(dataDir, "logs");
   }
   return undefined;
 }
@@ -72,8 +75,11 @@ ideScanUtils.writeLock(ctx, port, {
   authToken,
 });
 
-if (logDir) {
-  console.log(`logging to: ${logDir}`);
+if (logger.logFile) {
+  console.log(`logging to: ${logger.logFile}`);
+  if (lspFix) {
+    console.log(`lsp logging to: ${getLspLogFile(logger.logFile)}`);
+  }
 }
 
 logger.log({ level: "info", msg: `monorepoRoot : ${monorepoRoot}` });
@@ -104,20 +110,32 @@ if (proxyOnly) {
   process.on("exit", () => ideScanUtils.removeLock(ctx, port));
 } else {
   // Spawn claude as a child process
-  const shimDir = path.resolve(import.meta.dir, "bin");
   const env = { ...process.env };
+  const LSP_SERVERS = ["typescript-language-server"];
 
   if (lspFix) {
+    const wrapperPath = path.resolve(import.meta.dir, "lsp-wrapper.ts");
+    const shimDir = path.join(dataDir, "shims", `${process.pid}`);
+    fs.mkdirSync(shimDir, { recursive: true });
+
+    for (const server of LSP_SERVERS) {
+      if (process.platform === "win32") {
+        const shimContent = `@echo off\nset "${LSP_ENV_KEYS.target}=${server}"\nset "${LSP_ENV_KEYS.shimDir}=${shimDir}"\nbun "${wrapperPath}" %*\n`;
+        fs.writeFileSync(path.join(shimDir, `${server}.cmd`), shimContent);
+      } else {
+        const shimContent = `#!/bin/sh\nexport ${LSP_ENV_KEYS.target}="${server}"\nexport ${LSP_ENV_KEYS.shimDir}="${shimDir}"\nexec bun "${wrapperPath}" "$@"\n`;
+        const shimPath = path.join(shimDir, server);
+        fs.writeFileSync(shimPath, shimContent, { mode: 0o755 });
+      }
+    }
+
     const sep = process.platform === "win32" ? ";" : ":";
     env.PATH = `${shimDir}${sep}${env.PATH ?? ""}`;
     env.ENABLE_LSP_TOOL = "1";
-    env.CCE_LSP_DEBUG = "1";
-    if (logDir) {
-      env.CCE_LOG_DIR = logDir;
-    }
+    setParentLspEnv(env, { logFile: logger.logFile, logLevel });
     logger.log({
       level: "info",
-      msg: `lsp-fix: prepended ${shimDir} to PATH, set ENABLE_LSP_TOOL=1`,
+      msg: `lsp-fix: generated shims in ${shimDir} for [${LSP_SERVERS.join(", ")}], set ENABLE_LSP_TOOL=1`,
     });
   }
 

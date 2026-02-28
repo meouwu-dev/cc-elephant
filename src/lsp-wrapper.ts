@@ -9,21 +9,16 @@
 import { spawn } from "child_process";
 import path from "path";
 import fs from "fs";
+import { logUtils } from "./logger.ts";
+import { getLspEnv, getLspLogFile } from "./lsp-env.ts";
 
-const DEBUG = !!process.env.CCE_LSP_DEBUG;
-const LOG_DIR = process.env.CCE_LOG_DIR;
-const LOG_FILE = LOG_DIR ? path.join(LOG_DIR, "cc-elephant.log") : undefined;
+const lspEnv = getLspEnv();
+const lspLogFile = lspEnv.logFile ? getLspLogFile(lspEnv.logFile) : undefined;
 
-function debug(msg: string) {
-  const line = `[cce-lsp-wrapper ${new Date().toISOString()}] ${msg}\n`;
-  if (DEBUG) process.stderr.write(line);
-  if (LOG_FILE) {
-    try {
-      fs.mkdirSync(path.dirname(LOG_FILE), { recursive: true });
-      fs.appendFileSync(LOG_FILE, line);
-    } catch {}
-  }
-}
+const logger = logUtils.getLogger({
+  logFile: lspLogFile,
+  logLevel: lspEnv.logLevel,
+});
 
 // --- URI normalization ---
 
@@ -54,25 +49,24 @@ function normalizeUris(text: string): string {
   );
 }
 
-// --- Find the real typescript-language-server ---
+// --- Find the real LSP server ---
 
-function findRealTLS(selfDir: string): string {
+function findRealServer(serverName: string, shimDir: string): string {
   const envPath = process.env.PATH ?? "";
   const sep = process.platform === "win32" ? ";" : ":";
   const dirs = envPath.split(sep);
-  const exeName = "typescript-language-server";
   const candidates = process.platform === "win32"
-    ? [`${exeName}.cmd`, `${exeName}.bat`, `${exeName}.exe`, exeName]
-    : [exeName];
+    ? [`${serverName}.cmd`, `${serverName}.bat`, `${serverName}.exe`, serverName]
+    : [serverName];
 
   for (const dir of dirs) {
     const normalized = path.resolve(dir);
-    if (normalized === path.resolve(selfDir)) continue;
+    if (normalized === path.resolve(shimDir)) continue;
     for (const candidate of candidates) {
       const full = path.join(dir, candidate);
       try {
         fs.accessSync(full, fs.constants.X_OK);
-        debug(`found real TLS: ${full}`);
+        logger.log({ level: "info", msg: `found real ${serverName}: ${full}` });
         return full;
       } catch {
         // not here
@@ -81,7 +75,7 @@ function findRealTLS(selfDir: string): string {
   }
 
   throw new Error(
-    "Could not find real typescript-language-server on PATH (excluding wrapper shim dir)"
+    `Could not find real ${serverName} on PATH (excluding wrapper shim dir)`
   );
 }
 
@@ -131,24 +125,24 @@ function encodeMessage(body: string): Buffer {
 
 // --- Main ---
 
-debug(`lsp-wrapper invoked with args: ${process.argv.slice(2).join(" ")}`);
+logger.log({ level: "info", msg: `lsp-wrapper invoked for ${lspEnv.target} with args: ${process.argv.slice(2).join(" ")}` });
 
-const selfDir = path.resolve(path.dirname(process.argv[1] ?? __filename), "bin");
+const shimDir = lspEnv.shimDir || path.dirname(process.argv[1] ?? __filename);
 
-const realTLS = findRealTLS(selfDir);
+const realServer = findRealServer(lspEnv.target, shimDir);
 const childArgs = process.argv.slice(2);
 
-debug(`spawning: ${realTLS} ${childArgs.join(" ")}`);
+logger.log({ level: "info", msg: `spawning: ${realServer} ${childArgs.join(" ")}` });
 
-const child = spawn(realTLS, childArgs, {
+const child = spawn(realServer, childArgs, {
   stdio: ["pipe", "pipe", "inherit"],
 });
 
 // stdin → child: normalize URIs in requests
 const stdinFramer = new JsonRpcFramer((body) => {
   const normalized = normalizeUris(body);
-  if (DEBUG && normalized !== body) {
-    debug(`stdin rewrite:\n  before: ${body.substring(0, 200)}\n  after:  ${normalized.substring(0, 200)}`);
+  if (normalized !== body) {
+    logger.log({ level: "debug", msg: `stdin rewrite:\n  before: ${body}\n  after:  ${normalized}` });
   }
   child.stdin.write(encodeMessage(normalized));
 });
@@ -159,8 +153,8 @@ process.stdin.on("end", () => child.stdin.end());
 // child stdout → stdout: normalize URIs in responses
 const stdoutFramer = new JsonRpcFramer((body) => {
   const normalized = normalizeUris(body);
-  if (DEBUG && normalized !== body) {
-    debug(`stdout rewrite:\n  before: ${body.substring(0, 200)}\n  after:  ${normalized.substring(0, 200)}`);
+  if (normalized !== body) {
+    logger.log({ level: "debug", msg: `stdout rewrite:\n  before: ${body}\n  after:  ${normalized}` });
   }
   process.stdout.write(encodeMessage(normalized));
 });
